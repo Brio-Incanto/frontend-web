@@ -1,0 +1,854 @@
+/* App styling — consumes tokens from styles/tokens.css only (see DESIGN.md).
+   Layout structure is the current scaffold; the deck / modular-workspace restructure
+   is a separate task. This pass re-skins onto the warm token palette. */
+
+:root {
+  /* `--vc`/`--voice-color` are NOT design tokens (hence not in tokens.css) — they're per-element
+     custom properties set via an inline `style` prop in TSX (a voice or staff color resolved at
+     render time: `resolveVoiceColor`, VexflowRenderer.tsx's per-note color). Declared here purely
+     so the IDE's static CSS analysis can resolve the property name at all ("cannot resolve custom
+     property" otherwise, even with a `var(--vc, fallback)` — the inspection checks the NAME has
+     some declaration, the fallback doesn't satisfy it). The inline style always wins by normal
+     cascade rules on the actual element, so this default is never what's really rendered. */
+  --vc: var(--color-accent);
+  --voice-color: var(--color-accent);
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--color-backdrop);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* double-click/drag (marquee, stem drag) would otherwise trigger native text selection on
+     surrounding labels — suppressed app-wide, re-enabled only on real text inputs below. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+input,
+textarea,
+[contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ---- topbar ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 30;
+}
+.topbar .title {
+  font-weight: 600;
+  font-size: var(--text-lg);
+  letter-spacing: -0.01em;
+}
+.topbar .title small {
+  color: var(--color-ink-muted);
+  font-weight: 400;
+  margin-left: var(--space-2);
+}
+.topbar-error {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+.spacer {
+  flex: 1;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-fast) var(--ease-standard);
+}
+.icon-btn:hover {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-border-strong);
+}
+.icon-btn.active {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  color: var(--color-accent-deep);
+}
+/* §7: press = 120ms scale to 0.97 + darken; fires on pointer-DOWN via plain CSS `:active`, which
+   is exactly the "respond on pointer-down, never on release" contract (§3.5 №8) for free. */
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  min-width: 120px;
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+/* Segmented control (§7) — the ONE shared implementation for both instances DESIGN.md names
+   (canvas mode Line/Page, staff selector Upper/Lower): a surface track with a "raised active
+   thumb that slides" between options. The thumb is a `motion.div` (`SegmentedControl.tsx`,
+   `layoutId`-based shared-layout animation, `springSnappy` — small-control preset, §3.5) rendered
+   inside whichever button is active; `.seg-thumb` carries the raised bg/shadow, the button itself
+   only carries text color/weight, so the FLIP animation moves one real element instead of two
+   buttons' backgrounds swapping in place. */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--color-backdrop);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.seg button {
+  position: relative; /* containing block for .seg-thumb */
+  border: none;
+  background: transparent;
+  padding: 5px 13px;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  color: var(--color-ink-muted);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-fast) var(--ease-standard);
+}
+.seg button:hover {
+  color: var(--color-ink);
+}
+.seg button:active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+.seg button.active {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+.seg-thumb {
+  position: absolute;
+  inset: 0;
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+  z-index: 0;
+}
+.seg-btn-label {
+  position: relative;
+  z-index: 1;
+}
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+/* ---- deck / hotbar (element stamps) ---- */
+.hotbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 30;
+}
+/* Deck cell (§7): md/32px, not sm/26px — §3.3 names deck cells as the sm/dense case and 26px was
+   tried, but at that size the note-duration glyphs read as illegible smudges (real user feedback,
+   2026-07-25) — legibility of the glyph content overrides the literal density tier here. §3.3
+   corrected accordingly (see the note there). Hover LIFTS (shadow-1), per §7's "hover lift" —
+   separate from the active tint (accent-subtle bg), which is a color state not a hover cue. */
+.tool {
+  position: relative; /* anchors .tool-hotkey */
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-ink);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-fast) var(--ease-standard);
+}
+.tool:hover {
+  background: var(--color-accent-subtle);
+  box-shadow: var(--shadow-1);
+}
+.tool.active {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  color: var(--color-accent-deep);
+}
+.tool:not(.empty):active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+.tool:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+/* the hotkey digit (or "V") — a small badge in the corner of every hotbar slot, filled or empty,
+   so the key-to-slot mapping is always legible at a glance. Deliberately BELOW --text-xs (12px):
+   even at 32px cell size a 12px badge would crowd the glyph — this one number is exempt from the
+   type scale for the same reason a favicon doesn't follow body type rules. */
+.tool-hotkey {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--color-ink-faint);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.tool.active .tool-hotkey {
+  color: var(--color-accent-deep);
+}
+/* an empty hotbar slot: the hotkey is reserved (still labeled) but there's nothing to click yet —
+   a dashed outline reads as "a place, not a button" without looking broken/disabled. */
+.tool.empty {
+  border: 1px dashed var(--color-border);
+  cursor: default;
+}
+.tool.empty:hover {
+  background: transparent;
+  box-shadow: none;
+}
+.vex-icon svg {
+  display: block;
+}
+.hotbar-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  margin: 0 var(--space-2);
+}
+
+/* deck: staff + voice selectors, DESIGN.md §4 — pushed to the far right of the same 48px row as
+   the stamp slots (`margin-left: auto`), never a second row */
+.deck-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.deck-voice-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.deck-voice-chip {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--vc);
+  background: transparent;
+  color: var(--vc);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-fast) var(--ease-standard);
+}
+.deck-voice-chip:active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+.deck-voice-chip:hover:not(.active) {
+  background: color-mix(in srgb, var(--vc) 18%, transparent);
+}
+.deck-voice-chip.active {
+  background: var(--vc);
+  color: #fff;
+}
+/* caret, not an ellipsis — reads as "reveals a panel below" (matches the ▸/◂ arrow vocabulary
+   `.lp-reveal`/`.lp-toggle` already use elsewhere), where "..." read as a generic/unclear
+   "options menu" glyph unrelated to what's actually inside (color + select-all) */
+.deck-voice-more {
+  width: 32px;
+  height: 32px;
+  min-width: 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--color-ink-muted);
+}
+.deck-voice-more.active {
+  color: var(--color-accent-deep);
+}
+.deck-voice-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: 190px;
+  padding: var(--space-3);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  /* popovers/dialogs use shadow-3 (DESIGN.md §3 elevation scale) — shadow-2 (panel/card weight)
+     under-stated it and was part of why it read as loose/foreign rather than a proper popover */
+  box-shadow: var(--shadow-3);
+}
+/* small triangle pointing back up at the trigger button — ties the floating box to its anchor
+   instead of it reading as an unrelated box that happens to overlap the score/properties panel */
+.deck-voice-popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 14px;
+  width: 11px;
+  height: 11px;
+  background: var(--color-surface-raised);
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  transform: rotate(45deg);
+}
+.deck-voice-popover-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: var(--space-3);
+}
+.deck-voice-popover-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--vc);
+  flex: none;
+}
+.deck-voice-select-all {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+}
+
+/* ---- canvas ---- */
+/* The score fills the whole canvas area edge-to-edge on ONE continuous white surface — there is no
+   longer a distinct white "paper card" floating on a warm backdrop. Rationale (experiment per the
+   product owner): the card's own box is a DIFFERENT size in line vs page mode, so switching modes
+   visibly resized/reshuffled that card — a jarring second thing moving on top of the score itself
+   reflowing. Making the canvas-area itself the white surface (`--color-paper`) and the `.paper`
+   node a transparent, unshadowed sizer means a mode switch changes only the SCORE's layout, never a
+   visible card around it. */
+.canvas-area {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-6);
+  display: flex;
+  align-items: flex-start;
+  background: var(--color-paper);
+}
+.paper {
+  background: transparent;
+  padding: var(--space-4);
+  flex: none;
+  /* Always flush against `.canvas-area`'s left padding, never auto-centered — `margin: 0 auto`
+     centers a narrower-than-container item but collapses to flush-left once it overflows, so page
+     vs. line mode's differently-sized content got different actual left offsets. Fixed offset in
+     both modes keeps the score's horizontal position stable across a mode switch (DESIGN.md §5). */
+  margin: 0;
+}
+.score-scale {
+  position: relative;
+}
+.score-scale svg {
+  display: block;
+}
+/* Zoom + mode switch are BOTH driven from JS via `motion/react` (EditorView.tsx). Zoom: the scale
+   transform + `.paper`/`.score-scale` sizes all read one `useSpring` value each frame. Mode switch:
+   a real BOX-SIZE wipe on `.score-wipe` (`overflow: hidden` + animated width/height) — the old
+   content is erased along its own flow axis (line = width, page = height), then, once the new mode
+   has laid out + scroll-anchored underneath (still fully clipped = invisible), the new content is
+   drawn back in along ITS axis. Erase-then-redraw, in a different direction — no snapshot/ghost
+   element. Deliberately NOT `clip-path` on the `scale`-transformed `.score-content`: animating
+   clip-path together with `transform` on an element holding a big SVG tree, inside a scrollable
+   ancestor, is a real Chromium/WebKit compositor trigger for stale-paint trails during fast
+   scrolling (confirmed repro) — plain `overflow: hidden` + box size is the standard, reliably-
+   repainted mechanism, so the CLIP lives on a separate untransformed wrapper. All sizes are set
+   inline by Motion (a CSS transition can't be retargeted mid-flight, which is the whole point). */
+.score-wipe {
+  overflow: hidden;
+}
+.score-content {
+  transform-origin: top left;
+}
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.overlay .bg {
+  pointer-events: all;
+  fill: transparent;
+}
+.overlay .hit {
+  pointer-events: all;
+  cursor: pointer;
+  fill: transparent;
+}
+/* No hover fill on the hit-rect itself anymore — that read as a box behind the note, separate
+   from the note(s). The actual highlight is a light tint on the note glyph itself, in the OTHER
+   (render) svg — see `.vf-notehead.hovered` below, driven by `hoveredNoteIds` (EditorView.tsx).
+   Barline hover-tint is removed for now (was too glitchy) — click-to-select-measure still works. */
+.overlay .barline-hit {
+  pointer-events: all;
+  cursor: pointer;
+  fill: transparent;
+}
+.overlay .band {
+  pointer-events: none;
+  fill: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  stroke: var(--color-accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 2;
+}
+.overlay .insert-ghost,
+.overlay .insert-ghost * {
+  /* MUST also hit every descendant: the injected VexFlow markup sets `pointer-events="bounding-box"`
+     as an SVG presentation attribute directly on its notehead/stem sub-groups (so real notes'
+     bounding boxes are hoverable/hit-testable in a real render) — a presentation attribute this
+     specific always loses to a matching CSS rule, but only if the rule actually TARGETS that
+     descendant; `pointer-events: none` on the outer `.insert-ghost` group alone does NOT cascade
+     over an explicit attribute set deeper in the tree. Without this, a click landing exactly on the
+     ghost's own rendered shape — i.e. exactly where a user naturally clicks to insert, since that's
+     what the ghost is previewing — hits the ghost's SVG path instead of the `.bg`/`.hit` rect
+     underneath, and the insert silently never fires (`onDownBg` never runs, `start.current` stays
+     null). Found via a real repro: insertion consistently failed when clicking a hovered ghost dead
+     center, worked when clicking a few px off — i.e. exactly this. */
+  pointer-events: none;
+}
+.overlay .insert-ghost {
+  /* no fill here — the glyph's own paths carry fill="currentColor" (baked in at draw time),
+     resolved against this group's `color` (set inline to the current voice's color). */
+  opacity: 0.45;
+}
+.overlay .cursor {
+  stroke: var(--color-playback-cursor);
+  stroke-width: 2;
+}
+/* the WHOLE stem is the drag target, not just its tip: `.stem-handle-hit` is a wide, invisible
+   stroke overlaying VexFlow's own ~1.5px stem (too thin to reliably click) that does the actual
+   pointer handling. Rendered for EVERY stemmed note, always (not just selected/hovered ones) — so
+   hovering the stem directly, with nothing selected and without having touched the notehead first,
+   reveals it immediately via plain CSS `:hover` below; no React hover-state plumbing needed.
+   MUST use `opacity: 0` here, NOT `stroke: transparent` — some engines (confirmed: Safari/WebKit)
+   treat a `transparent`-colored stroke as unpainted and skip it entirely for hit-testing, even with
+   `pointer-events: all`; `opacity: 0` keeps the paint operation real (just invisible), which every
+   engine still hit-tests correctly. Testing in this session only ran Chromium, which doesn't
+   exhibit the bug — don't trust a Chromium-only check for this again. */
+.overlay .stem-handle-hit {
+  pointer-events: all;
+  cursor: ns-resize;
+  stroke: var(--voice-color, var(--color-accent));
+  stroke-width: 12;
+  opacity: 0;
+}
+/* `.stem-handle-visual` (the thin line) shows on hover of the (wider, invisible) hit-line right
+   behind it, as a subtle "this is grabbable" affordance — still draggable from a plain hover with
+   nothing selected, no dot needed for that to work. `.stem-handle-dot` (the actual visible,
+   grabbable POINT) is deliberately SELECTED-ONLY, not hover-triggered — showing a dot on every
+   stem the pointer passes over was too noisy while just moving the mouse around the score.
+   Colored by the note's own VOICE (`--voice-color`, set inline per group — same resolution the
+   notehead itself uses), not a flat accent — the handle reads as part of that voice, not separate
+   UI chrome. */
+.overlay .stem-handle-visual {
+  pointer-events: none;
+  stroke: var(--voice-color, var(--color-accent));
+  /* matches the real stem's own drawn width (VexFlow's `.vf-stem`/`.vf-cross-staff-stem`,
+     VexflowRenderer.tsx's `STEM_WIDTH`) — a wider overlay stroke leaves a visible fringe past
+     the real stem's edges. */
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+.overlay .stem-handle-dot {
+  pointer-events: none;
+  fill: var(--voice-color, var(--color-accent));
+  stroke: var(--color-paper);
+  stroke-width: 1.5;
+  opacity: 0;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    r var(--motion-fast) var(--ease-standard);
+}
+.overlay .stem-handle-hit:hover ~ .stem-handle-visual {
+  opacity: 0.6;
+}
+/* Once selected, the REAL stem (render SVG) is already tinted via `.vf-stavenote.selected path` —
+   this duplicate overlay line, independently anti-aliased, never lines up pixel-for-pixel with it
+   and shows as a seam. Hide it once selected; the dot below still needs to show (the drag handle). */
+.overlay .stem-handle-group.selected .stem-handle-visual {
+  opacity: 0;
+}
+.overlay .stem-handle-group.selected .stem-handle-dot {
+  opacity: 0.9;
+}
+
+/* Voices are NOT permanently tinted — notes read as plain ink engraving. Voice colour appears
+   only on SELECTION, so a selected voice is identifiable. The color itself comes from
+   `--voice-color`, set inline per note (VexflowRenderer.tsx) from the resolved voice color
+   (default palette, or the user's custom override — see core/model/voiceColors) — ONE rule
+   for any number of voices, instead of one static rule per voice index. */
+/* Tint every part of a selected note — noteheads, stem, flag, augmentation dots — except ledger
+   lines. Flags/dots are bare `<path>` children at the same DOM level as ledger lines (no VexFlow
+   class), so ledger lines are explicitly classed `.vf-ledger` at draw time (VexflowRenderer.tsx)
+   and excluded here, rather than trying to select flags/dots by their own shape. */
+.vf-stavenote.selected path:not(.vf-ledger),
+.vf-stavenote.selected rect:not(.vf-ledger) {
+  fill: var(--voice-color, var(--color-accent-deep));
+  stroke: var(--voice-color, var(--color-accent-deep));
+}
+/* Individual-note-within-a-chord selection: `.selected` on ONE `.vf-notehead` (not the whole
+   `.vf-stavenote` group) tints just that notehead — a click on a chord selects the note you
+   actually clicked, not the whole chord (see `data-individual-note-id` / VexflowRenderer.tsx).
+   The group-level rule above still fires too, but only once ALL of a chord's notes are selected
+   (fast double-click, or a plain single-note carrier) — so picking one note out of a chord never
+   implies its shared stem/ledgers are "selected". */
+.vf-notehead.selected path,
+.vf-notehead.selected rect {
+  fill: var(--voice-color, var(--color-accent-deep));
+  stroke: var(--voice-color, var(--color-accent-deep));
+}
+/* hover = a light version of the selection tint (mixed with ink, not full strength) plus a
+   subtle scale-up, on `.vf-notehead` only, never the `.vf-stavenote` group — ledger lines are
+   plain sibling paths under the group with no distinguishing class, so a group-wide rule would
+   tint/scale them too and (via `transform-box: fill-box` computing from the group's full content)
+   visibly displace them off their stave-line positions.
+   Both rules target the notehead's path/rect, not the `.vf-notehead` group itself:
+   `shrinkWholeNotehead` (engravingScale.ts) sets a `transform` ATTRIBUTE on that group for a
+   whole note, and per spec a CSS `transform` on the same element wins outright rather than
+   composing with it — scoping to the child nests the hover scale inside the group's attribute
+   transform instead of replacing it.
+   `.hovered` is set directly on the specific `.vf-notehead` under the pointer (VexflowRenderer.tsx),
+   not the ancestor group, so a hovered chord tints only that one notehead. */
+.vf-notehead.hovered:not(.selected) path,
+.vf-notehead.hovered:not(.selected) rect {
+  fill: color-mix(in srgb, var(--voice-color, var(--color-accent-deep)) 65%, var(--color-ink));
+  stroke: color-mix(in srgb, var(--voice-color, var(--color-accent-deep)) 65%, var(--color-ink));
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(1.08);
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+/* ---- left (editor) panel ---- */
+/* macOS-window-style slide (LeftPanel.tsx): TWO separate values, one rigid visual unit.
+   `.left-panel`'s own `width` is the CLAMPED, strictly-monotonic one — the only thing this flex
+   item ever reports to `.canvas-area` next to it, so the canvas/notation NEVER reacts to the small
+   decorative bounce (only to the real open<->closed transition). `.lp-content` is a fixed-224px
+   box (never reflows) whose `x`-transform carries the UNCLAMPED, bouncy value — everything on the
+   panel (toggle, chips, labels) lives inside it and rides that same transform as one rigid unit.
+   `.left-panel` is `overflow: visible` + a raised `z-index` specifically so that bounce (which can
+   momentarily extend a few px beyond the panel's current clamped slot) paints on top of the canvas
+   instead of being clipped or covered by it. */
+.left-panel {
+  position: relative;
+  z-index: 20; /* panels tier, DESIGN.md §3.6 z-scale (was 5, under the deck/topbar's 30 but also
+    under nothing else deliberately — bumped to the documented "panels" tier since nothing else on
+    this page currently claims 10/20, so this was a stray value rather than an intentional layer) */
+  flex: none;
+  overflow: visible;
+  /* Same surface color as `.lp-content` — `layout` settles before `visual`'s bounce by design
+     (useLayoutSafeSpring's invariant, src/styles/motion.ts), so there's a window where this box is
+     already full-width but `.lp-content` hasn't caught up; matching the background makes that
+     transient gap invisible instead of exposing the backdrop underneath. */
+  background: var(--color-surface);
+}
+.lp-content {
+  position: relative; /* containing block for `.lp-toggle` */
+  width: 264px; /* the fully-open width (matches OPEN_W in LeftPanel.tsx, DESIGN.md §4's "Left 264px") — fixed, never reflows */
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-4);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.lp-toggle {
+  position: absolute;
+  top: var(--space-4);
+  right: 7px;
+}
+/* the "show" button — chrome pinned to the workspace's left edge, NOT part of the sliding panel;
+   fades in (driven by the same `p` spring) once the panel has left, so it's the reopen affordance. */
+.lp-reveal {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-3);
+  z-index: 20;
+}
+.lp-content h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+  padding-right: 32px; /* clear the absolutely-positioned toggle button above */
+}
+.chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-fast) var(--ease-standard);
+}
+.chip:hover {
+  background: var(--color-accent-subtle);
+}
+.chip:active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+.chip.active {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  color: var(--color-accent-deep);
+  font-weight: 600;
+}
+.lp-sublabel {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  margin-bottom: var(--space-2);
+}
+.voice-swatch-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.voice-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  background: var(--vc);
+  cursor: pointer;
+  padding: 0;
+}
+.voice-swatch:hover {
+  border-color: var(--color-ink-faint);
+}
+.voice-swatch-custom {
+  position: relative;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  display: inline-flex;
+  overflow: hidden;
+}
+.voice-swatch-custom input[type='color'] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+.lp-hint {
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
+
+/* ---- properties panel ---- */
+.props {
+  width: 284px; /* DESIGN.md §4's "Right 284px" (was 264px, a stray copy of the left panel's number) */
+  flex: none;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  padding: var(--space-5);
+  overflow: auto;
+}
+.props h3 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-muted);
+}
+.props .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+.props .row b {
+  font-weight: 600;
+}
+.props .empty {
+  color: var(--color-ink-faint);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.props-section {
+  margin-top: var(--space-4);
+}
+.props-section-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-muted);
+  margin-bottom: var(--space-2);
+}
+.props-chip-row {
+  display: flex;
+  gap: 6px;
+}
+.props-chip-row .chip {
+  flex: 1;
+  text-align: center;
+}
+.props-delete {
+  width: 100%;
+}
+.danger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 34%, transparent);
+  background: var(--color-surface-raised);
+}
+.danger:hover {
+  background: var(--color-danger-subtle);
+  border-color: color-mix(in srgb, var(--color-danger) 34%, transparent);
+}
+
+/* ---- transport ---- */
+.transport {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-5);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+.transport .play {
+  /* control height rule (§3.3, "ONLY these two sizes") is 32/md or 26/sm — was 38px */
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-fast) var(--ease-standard);
+}
+.transport .play:hover {
+  background: var(--color-accent-strong);
+}
+.transport .play:active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+.transport .time {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  min-width: 120px;
+}
+.transport .seek {
+  flex: 1;
+  accent-color: var(--color-accent);
+}
+.badge {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}

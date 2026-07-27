@@ -1,0 +1,100 @@
+/* Design tokens — the single source of truth for color, type, spacing, elevation, motion.
+   See DESIGN.md. Components consume these variables only; a hardcoded hex/px/ms is a defect.
+   Light theme now; a dark theme lands as a second block here (components never change). */
+
+:root {
+  /* Neutrals — warm sand/taupe (never grey) */
+  --color-backdrop: #f4eee4;
+  --color-surface: #fbf8f2;
+  --color-surface-raised: #fffdf9;
+  --color-paper: #ffffff;
+  --color-border: #e6dccc;
+  --color-border-strong: #d5c7b2;
+
+  /* Ink — warm near-black text ramp */
+  --color-ink: #2c241d;
+  --color-ink-muted: #6f6153;
+  --color-ink-faint: #a5967f;
+
+  /* Accent — terracotta coral */
+  --color-accent: #e07856;
+  --color-accent-strong: #c75f3e;
+  --color-accent-deep: #a34b2f;
+  --color-accent-subtle: #fae9df;
+
+  /* Semantic — softened, never pure hues */
+  --color-danger: #a94456;
+  --color-danger-subtle: #f7e4e6;
+  --color-success: #5f8a68;
+  --color-success-subtle: #e7f0e7;
+  --color-warning: #b98a3a;
+  --color-warning-subtle: #f7edd8;
+
+  /* Focus */
+  --color-focus-ring: rgba(224, 120, 86, 0.45);
+
+  /* Voice colors — index 0 = ink (main voice reads as plain engraving); 1..3 tinted */
+  --color-voice-1: #4e7cb8;
+  --color-voice-2: #4e9b8f;
+  --color-voice-3: #8b6fb8;
+  --color-voice-4: #c25e8f;
+
+  /* Playback */
+  --color-playback-cursor: #c75f3e;
+
+  /* Elevation — warm shadows */
+  --shadow-1: 0 1px 2px rgba(74, 56, 40, 0.08);
+  --shadow-2: 0 2px 8px rgba(74, 56, 40, 0.1);
+  --shadow-3: 0 8px 28px rgba(74, 56, 40, 0.16);
+  --shadow-paper: 0 1px 3px rgba(74, 56, 40, 0.1), 0 8px 32px rgba(74, 56, 40, 0.08);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px; /* pills, color dots */
+
+  /* Spacing (base 4px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* Type */
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Type scale (DESIGN.md §3.2) — size / paired line-height in the name's comment; components
+     consume the font-size var, and set line-height explicitly only where the block needs one. */
+  --text-xs: 12px; /* 16px line — badges, kbd hints */
+  --text-sm: 13px; /* 18px line — secondary UI, dense panels */
+  --text-md: 14px; /* 20px line — default UI */
+  --text-lg: 16px; /* 24px line — panel titles */
+  --text-xl: 20px; /* 28px line — document title, empty states */
+
+  /* Motion — for the CSS MICRO-FEEDBACK layer only (hover/press/focus/selection washes). All
+     spatial/state-driven motion (panels, zoom, mode switch) is spring-driven from JS now — see
+     `src/styles/motion.ts` and DESIGN.md §3.5. */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  /* DEPRECATED (DESIGN.md §3.5): spatial motion belongs to springs now. `--motion-slow` (fixed
+     durations don't retarget mid-flight) and `--ease-anticipate` (a faked impulse plays identically
+     every time — honest overshoot only emerges from real spring velocity). Kept only so any stray
+     reference still resolves; do not use in new code. */
+  --motion-slow: 260ms;
+  --ease-anticipate: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
