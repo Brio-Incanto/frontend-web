@@ -14,7 +14,7 @@ export class HttpGateway implements EditorGateway {
   }
 
   load(scoreId: string): Promise<ScoreDocument> {
-    return this.asDocument(fetch(`${this.editUrl(scoreId)}/document`));
+    return this.asDocument(scoreId, fetch(`${this.editUrl(scoreId)}/document`));
   }
 
   apply(scoreId: string, command: Command): Promise<ScoreDocument> {
@@ -22,6 +22,7 @@ export class HttpGateway implements EditorGateway {
     switch (command.type) {
       case 'insertNote':
         return this.asDocument(
+          scoreId,
           fetch(`${base}/notes`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -41,6 +42,7 @@ export class HttpGateway implements EditorGateway {
         // mixed multi-select: whole carriers + individual notes, ONE gesture / one undo entry.
         // Flat `entity_ids` — the backend resolves + classifies each id (note vs carrier) itself.
         return this.asDocument(
+          scoreId,
           fetch(`${base}/batch-delete`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -51,21 +53,14 @@ export class HttpGateway implements EditorGateway {
   }
 
   undo(scoreId: string): Promise<ScoreDocument> {
-    return this.mutateOrReload(scoreId, `${this.editUrl(scoreId)}/undo`);
+    return this.asDocument(scoreId, fetch(`${this.editUrl(scoreId)}/undo`, { method: 'POST' }));
   }
 
   redo(scoreId: string): Promise<ScoreDocument> {
-    return this.mutateOrReload(scoreId, `${this.editUrl(scoreId)}/redo`);
+    return this.asDocument(scoreId, fetch(`${this.editUrl(scoreId)}/redo`, { method: 'POST' }));
   }
 
-  // POST returning the new view; 409 (nothing to undo/redo) -> reload the unchanged view.
-  private async mutateOrReload(scoreId: string, url: string): Promise<ScoreDocument> {
-    const res = await fetch(url, { method: 'POST' });
-    if (res.status === 409) return this.load(scoreId);
-    return this.asDocument(Promise.resolve(res));
-  }
-
-  private async asDocument(pending: Promise<Response>): Promise<ScoreDocument> {
+  private async asDocument(scoreId: string, pending: Promise<Response>): Promise<ScoreDocument> {
     const res = await pending;
     if (!res.ok) {
       const body: unknown = await res.json().catch(() => null);
@@ -73,6 +68,6 @@ export class HttpGateway implements EditorGateway {
         body && typeof body === 'object' && 'detail' in body ? String((body as { detail: unknown }).detail) : null;
       throw new Error(detail ?? `Request failed (${res.status})`);
     }
-    return fromView((await res.json()) as ScoreView);
+    return fromView((await res.json()) as ScoreView, scoreId);
   }
 }

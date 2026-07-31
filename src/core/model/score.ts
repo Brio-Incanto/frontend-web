@@ -2,10 +2,10 @@
 // (branch or draft). Shaped to mirror the BACKEND's domain truth directly: voice and
 // staff are independent axes (see PianoAppBackend CLAUDE.md / the `staff-voice-independent-axes`
 // design note) — a measure holds VOICES, and staff is a per-note attribute, never a level
-// of the document hierarchy. This is a deliberate 1:1 match with the backend's render view
-// (`measures -> voices -> items`, staff on each note) — see fromView.ts, which is now a near
-// passthrough instead of a staff-bucketing transform. Only the VexFlow renderer (which must
-// place glyphs on physical staves) derives a per-staff view, locally, at draw time.
+// of the document hierarchy. The backend sends a flat, normalized entity dump (not this
+// shape) — fromView.ts resolves it into `measures -> voices -> items` with staff on each
+// note. Only the VexFlow renderer (which must place glyphs on physical staves) derives a
+// per-staff view, locally, at draw time.
 
 export type Clef = 'treble' | 'bass';
 export type StaffId = string;

@@ -4,6 +4,7 @@ import { carrierIdOf, chordNoteIds } from '@/core/model/query';
 import type { Command } from '@/core/commands/command';
 import type { EditorGateway } from '@/core/gateway/EditorGateway';
 import { HttpGateway } from '@/core/gateway/HttpGateway';
+import { QueuedGateway } from '@/core/gateway/QueuedGateway';
 
 export type Tool = 'select' | 'w' | 'h' | 'q' | '8' | '16' | 'rest' | 'tie';
 
@@ -98,7 +99,9 @@ interface EditorState {
   setStemOverride: (noteId: string, override: { direction: 1 | -1; length: number | null } | null) => void;
 }
 
-const gateway = new HttpGateway();
+// Queued so edit requests to one draft (load/apply/undo/redo) are always in flight
+// one at a time, in call order — see QueuedGateway for why.
+const gateway: EditorGateway = new QueuedGateway(new HttpGateway());
 
 export const useEditor = create<EditorState>((set, get) => ({
   scoreId: 'default',
